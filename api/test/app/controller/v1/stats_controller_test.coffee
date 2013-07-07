@@ -53,17 +53,17 @@ class exports.KeyringStatsTest extends ApiaxleTest
 
     clock = @getClock now
 
-    hits.push ( cb ) => model.hit "facebook", "bob", [ "trusted" ], "uncached", 200, cb
-    hits.push ( cb ) => model.hit "facebook", "bob", [ "trusted"], "uncached", 200, cb
+    hits.push ( cb ) => model.hit "facebook", "bob", [ "trusted" ], "uncached", 200, "get", cb
+    hits.push ( cb ) => model.hit "facebook", "bob", [ "trusted"], "uncached", 200, "get", cb
 
-    hits.push ( cb ) => model.hit "facebook", "bob", [ "trusted" ], "cached", 400, cb
-    hits.push ( cb ) => model.hit "facebook", "bob", [ "trusted" ], "cached", 400, cb
+    hits.push ( cb ) => model.hit "facebook", "bob", [ "trusted" ], "cached", 400, "get", cb
+    hits.push ( cb ) => model.hit "facebook", "bob", [ "trusted" ], "cached", 400, "get", cb
 
-    hits.push ( cb ) => model.hit "twitter", "frank", [ "untrusted", "trusted" ], "cached", 400, cb
-    hits.push ( cb ) => model.hit "facebook", "frank", [ "untrusted", "trusted" ], "uncached", 400, cb
+    hits.push ( cb ) => model.hit "twitter", "frank", [ "untrusted", "trusted" ], "cached", 400, "get", cb
+    hits.push ( cb ) => model.hit "facebook", "frank", [ "untrusted", "trusted" ], "uncached", 400, "get", cb
 
-    hits.push ( cb ) => model.hit "twitter", "frank", [ "untrusted", "trusted" ], "uncached", 200, cb
-    hits.push ( cb ) => model.hit "twitter", "frank", [ "untrusted", "trusted" ], "uncached", 200, cb
+    hits.push ( cb ) => model.hit "twitter", "frank", [ "untrusted", "trusted" ], "uncached", 200, "get", cb
+    hits.push ( cb ) => model.hit "twitter", "frank", [ "untrusted", "trusted" ], "uncached", 200, "get", cb
 
     async.parallel hits, done
 
@@ -217,17 +217,17 @@ class exports.ApiStatsTest extends ApiaxleTest
 
     clock = @getClock now
 
-    hits.push ( cb ) => model.hit "facebook", "bob", [], "uncached", 200, cb
-    hits.push ( cb ) => model.hit "facebook", "bob", [], "uncached", 200, cb
+    hits.push ( cb ) => model.hit "facebook", "bob", [], "uncached", 200, "get", cb
+    hits.push ( cb ) => model.hit "facebook", "bob", [], "uncached", 200, "get", cb
 
-    hits.push ( cb ) => model.hit "facebook", "bob", [], "cached", 400, cb
-    hits.push ( cb ) => model.hit "facebook", "bob", [], "cached", 400, cb
+    hits.push ( cb ) => model.hit "facebook", "bob", [], "cached", 400, "get", cb
+    hits.push ( cb ) => model.hit "facebook", "bob", [], "cached", 400, "get", cb
 
-    hits.push ( cb ) => model.hit "facebook", "bill", [], "cached", 400, cb
-    hits.push ( cb ) => model.hit "facebook", "bill", [], "uncached", 400, cb
+    hits.push ( cb ) => model.hit "facebook", "bill", [], "cached", 400, "get", cb
+    hits.push ( cb ) => model.hit "facebook", "bill", [], "uncached", 400, "get", cb
 
-    hits.push ( cb ) => model.hit "twitter", "bill", [], "uncached", 200, cb
-    hits.push ( cb ) => model.hit "twitter", "bob", [], "uncached", 200, cb
+    hits.push ( cb ) => model.hit "twitter", "bill", [], "uncached", 200, "get", cb
+    hits.push ( cb ) => model.hit "twitter", "bob", [], "uncached", 200, "get", cb
 
     @test_cases = [ [ "second", @now_seconds ],
                     [ "minute", @now_minutes ],

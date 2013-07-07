@@ -94,7 +94,15 @@ class CatchAll extends ApiaxleController
           statsModel = @app.model "stats"
 
           @app.logger.debug "Cache hit: #{options.url}"
-          return statsModel.hit req.subdomain, req.key.data.key, req.keyrings, "cached", status, ( err, res ) ->
+          recordables = [
+            req.subdomain,
+            req.key.data.key,
+            req.keyrings,
+            "cached",
+            status,
+            @constructor.verb ]
+
+          return statsModel.hit recordables..., ( err, res ) ->
             fakeResponse =
               statusCode: status
               headers:
@@ -129,7 +137,15 @@ class CatchAll extends ApiaxleController
         if err_func = @constructor.ENDPOINT_ERROR_MAP[ err.code ]
           new_err = err_func()
 
-          return statsModel.hit api, api_key, keyrings, "error", new_err.name, ( err, res ) ->
+          recordables = [
+            api,
+            api_key,
+            keyrings,
+            "error",
+            new_err.name,
+            @constructor.verb ]
+
+          return statsModel.hit recordables..., ( err, res ) ->
             return cb new_err
 
         # if we're here its a new kind of error, don't want to call
@@ -139,7 +155,15 @@ class CatchAll extends ApiaxleController
         return cb error, null
 
       # response with the same code as the endpoint
-      return statsModel.hit api, api_key, keyrings, "uncached", apiRes.statusCode, ( err, res ) ->
+      recordables = [
+        api,
+        api_key,
+        keyrings,
+        "uncached",
+        apiRes.statusCode,
+        @constructor.verb ]
+
+      return statsModel.hit recordables..., ( err, res ) ->
         return cb err, apiRes, body
 
   execute: ( req, res, next ) ->
@@ -175,7 +199,15 @@ class CatchAll extends ApiaxleController
         # QpdExceededError at the moment)
         type = err.name
 
-        return statsModel.hit req.subdomain, req.key.data.key, req.keyrings, "error", type, ( counterErr, res ) ->
+        recordables = [
+          req.subdomain,
+          req.key.data.key,
+          req.keyrings,
+          "error",
+          type,
+          @constructor.verb ]
+
+        return statsModel.hit recordables..., ( counterErr, res ) ->
           return next counterErr if counterErr
           return next err
 

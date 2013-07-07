@@ -175,13 +175,17 @@ class exports.Stats extends Redis
     # overlap
     return ( min - properties.ttl )
 
-  hit: ( api, key, keyrings, cached, code, cb ) ->
+  hit: ( api, key, keyrings, cached, code, verb, cb ) ->
     multi = @multi()
 
     @recordHit multi, [ "api", api, cached, code ]
     @recordHit multi, [ "key", key, cached, code ]
     @recordHit multi, [ "key-api", key, api, cached, code ]
     @recordHit multi, [ "api-key", api, key, cached, code ]
+
+    # record the verb along side the api/key
+    @recordHit multi, [ "api-verb", api, verb ]
+    @recordHit multi, [ "key-verb", key, verb ]
 
     @recordScore multi, [ "api" ], api
     @recordScore multi, [ "key" ], key
