@@ -5,39 +5,35 @@ _ = require "lodash"
 path = require "path"
 async = require "async"
 express = require "express"
-debug = require( "debug" )( "aa:app" )
 Redis = require "redis"
 
-RedisSentinel = require "redis-sentinel-client"
+Redis = require "redis"
 
 { Js2Xml } = require "js2xml"
 { Application } = require "scarf"
 { NotFoundError } = require "./error"
 
 class exports.AxleApp extends Application
-  configure: ( cb ) ->
+  configureExpress: ( cb ) ->
     # error handler
     @use @express.router
     @disable "x-powered-by"
 
+    # very simple logger if we're at debug log level
+    @debugOn = @config.application.debug is true
+    if @debugOn
+      @logger.warn "Debug mode is switched on"
+
+      @use ( req, res, next ) =>
+        @logger.debug "#{ req.method } - #{ req.url }"
+        next()
+
+  configure: ( cb ) ->
     @readConfiguration ( err, @config, filename ) =>
       return cb err if err
 
-      debug "Reading configuration"
-
       @setupLogger @config.logging, ( err, @logger ) =>
         return cb err if err
-
-        debug "Setting up logger"
-
-        # very simple logger if we're at debug log level
-        @debugOn = @config.application.debug is true
-        if @debugOn
-          @logger.warn "Debug mode is switched on"
-
-          @use ( req, res, next ) =>
-            @logger.debug "#{ req.method } - #{ req.url }"
-            next()
 
         @logger.info "Loaded configuration from #{ filename }"
         return cb null
@@ -58,33 +54,33 @@ class exports.AxleApp extends Application
     all = []
 
     all.push ( cb ) => @configure cb
+    all.push ( cb ) => @redisConnect "redisClient", cb
     all.push ( cb ) => @loadAndInstansiatePlugins cb
-    all.push ( cb ) => @redisConnect cb
 
     async.series all, ( err ) =>
       return cb err if err
       return cb null, ( ) => @redisClient.quit()
 
-  redisConnect: ( cb ) =>
+  redisConnect: ( client_name, cb ) =>
     # grab the redis config
     { port, host, sentinel } = @config.redis
 
     # are we up for some sentinel fun?
-    @redisClient = null
+    this[client_name] = null
     if sentinel
-      @redisClient = RedisSentinel.createClient
+      this[client_name] = Redis.createClient
         port: port
         host: host
         logger: { log: -> }
 
-      @redisClient.on "failover-start", => @logger.warn "Failover starts."
-      @redisClient.on "failover-end", => @logger.warn "Failover ends."
-      @redisClient.on "disconnected", => @logger.warn "Old master disconnected."
+      this[client_name].on "failover-start", => @logger.warn "Failover starts."
+      this[client_name].on "failover-end", => @logger.warn "Failover ends."
+      this[client_name].on "disconnected", => @logger.warn "Old master disconnected."
     else
-      @redisClient = Redis.createClient port, host
+      this[client_name] = Redis.createClient port, host
 
-    @redisClient.on "error", ( err ) => @logger.warn "#{ err }"
-    @redisClient.on "ready", cb
+    this[client_name].on "error", ( err ) => @logger.warn "#{ err }"
+    this[client_name].on "ready", cb
 
   loadAndInstansiatePlugins: ( cb ) ->
     @plugins = {}
@@ -103,8 +99,6 @@ class exports.AxleApp extends Application
               inst = null
 
               try
-                debug "Loading plugin #{ name }"
-
                 inst = new constructor this
                 friendly_name = if constructor.plugin_name
                   constructor.plugin_name
@@ -147,10 +141,24 @@ class exports.AxleApp extends Application
               type: "string"
               default: "localhost"
 
+  getRoutingSchema: ->
+    {}=
+      type: "object"
+      additionalProperties: false
+      properties:
+        routing:
+          type: "object"
+          additionalProperties: false
+          properties:
+            path_to_api:
+              type: "object"
+              additionalProperties: true
+
   getConfigurationSchema: ->
     _.merge @getAppConfigSchema(),
             @getLoggingConfigSchema(),
-            @getApiaxleConfigSchema()
+            @getApiaxleConfigSchema(),
+            @getRoutingSchema()
 
   controller: ( name ) ->
     return @plugins.controllers[name]
@@ -158,7 +166,19 @@ class exports.AxleApp extends Application
   model: ( name ) ->
     return @plugins.models[name]
 
-  onError: ( err, req, res, next ) ->
+  getErrorFormat: ( req ) ->
+    if query = req.parsed_url?.query
+      if query and query.format and query.format in [ "xml", "json" ]
+        return query.format
+
+    if req.api?.data.apiFormat is "xml"
+      return "xml"
+
+    return "json"
+
+  # because the proxy doesn't use express we can't use nice things
+  # like res.json here.
+  error: ( err, req, res ) ->
     output =
       error:
         type: err.name
@@ -172,17 +192,21 @@ class exports.AxleApp extends Application
 
     status = err.constructor.status or 400
 
-    # json
-    if req.api?.data.apiFormat isnt "xml"
+    if @getErrorFormat( req ) is "json"
       meta =
         version: 1
         status_code: status
 
-      return res.json status,
+      res.writeHead status, { "Content-Type": "application/json" }
+      return res.end JSON.stringify
         meta: meta
         results: output
 
     # need xml
-    res.contentType "application/xml"
+    res.writeHead status, { "Content-Type": "application/xml" }
     js2xml = new Js2Xml "error", output.error
-    return res.send status, js2xml.toString()
+    return res.end js2xml.toString()
+
+  # this will come from an express app
+  onError: ( err, req, res, next ) ->
+    @error err, req, res

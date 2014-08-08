@@ -5,9 +5,6 @@ _ = require "lodash"
 events = require "events"
 redis = require "redis"
 
-redisdebug = require( "debug" )( "aa:redis" )
-redismultidebug = require( "debug" )( "aa:redis:multi" )
-
 { validate } = require "scarf"
 { ValidationError, KeyNotFoundError } = require "../../lib/error"
 
@@ -27,7 +24,6 @@ class Redis
     return @constructor.__super__.create.apply this, arguments
 
   update: ( id, details, cb ) ->
-    redisdebug "update '#{ id }'"
     @find [ id ], ( err, results ) =>
       if not results[id]
         return cb new Error "Failed to update, can't find '#{ id }'."
@@ -42,7 +38,6 @@ class Redis
         return cb null, merged_data, old
 
   delete: ( id, cb ) ->
-    redisdebug "update '#{ id }'"
     @find [ id ], ( err, results ) =>
       return cb new Error "'#{ id }' not found." if not results[id]
 
@@ -54,7 +49,6 @@ class Redis
       multi.exec cb
 
   create: ( id, details, cb ) ->
-    redisdebug "create '#{ id }'"
     @find [ id ], ( err, results ) =>
       return cb err if err
 
@@ -128,7 +122,6 @@ class Redis
     return data
 
   find: ( ids, cb ) ->
-    redisdebug "find '#{ ids }'"
     # fetch all of the hits from redis
     multi = @multi()
     for id in ids
@@ -289,40 +282,42 @@ class KeyContainerModel extends Model
       return cb null, exists
 
 redisCommands = [
-  "srem",
-  "hset",
-  "hget",
-  "hdel",
-  "hlen",
-  "hmset",
-  "hincrby",
-  "hgetall",
-  "hexists",
+  "decr",
+  "brpop",
+  "del",
   "exists",
   "expire",
   "expireat",
-  "set",
   "get",
-  "incr",
-  "decr",
-  "del",
-  "keys",
-  "ttl",
-  "setex",
-  "sadd",
+  "hdel",
+  "hexists",
+  "hget",
+  "hgetall",
+  "hincrby",
   "hkeys",
-  "smembers",
-  "scard",
+  "hlen",
+  "hmset",
+  "hset",
+  "incr",
+  "keys",
   "linsert",
+  "llen",
+  "lpush",
   "lrange",
   "lrem",
-  "llen",
+  "publish",
   "rpush",
-  "lpush",
+  "sadd",
+  "scard",
+  "set",
+  "setex",
+  "smembers",
+  "srem",
+  "ttl",
   "zadd",
-  "zrem",
-  "zincrby",
   "zcard",
+  "zincrby",
+  "zrem",
   "zrevrange",
 ]
 
@@ -335,17 +330,21 @@ for command in redisCommands
 
     RedisMulti::[ command ] = ( key, args... ) ->
       full_key = @getKey key
-
-      redismultidebug "RedisMulti '#{ command }' on '#{ key }'"
       RedisMulti.__super__[ command ].apply this, [ full_key, args... ]
 
     # Redis just offloads to the attached redis client. Perhaps we
     # should inherit from redis as RedisMulti does
     Redis::[ command ] = ( key, args... ) ->
       full_key = @getKey key
-
-      redisdebug "Redis '#{ command }' on '#{ key }'"
       @app.redisClient[ command ]( full_key, args... )
+
+# subscribe is special in that we can only have one client
+Redis::subscribe = ( key, args... ) ->
+  if not @app.redisSubscribeClient?
+    throw Error "No redisSubscribeClient on app available."
+
+  full_key = @getKey key
+  @app.redisSubscribeClient.subscribe( full_key, args... )
 
 exports.Redis = Redis
 exports.Model = Model

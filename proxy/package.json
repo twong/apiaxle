@@ -10,28 +10,24 @@
   ],
   "description": "The actual proxy part of ApiAxle.",
   "bugs": "https://github.com/apiaxle/apiaxle/issues",
-  "version": "1.10.3",
+  "version": "1.12.32",
   "bin": {
-    "apiaxle-proxy": "./apiaxle-proxy.js"
+    "apiaxle-proxy": "./apiaxle-proxy.js",
+    "apiaxle-proxy-event-subscriber": "./apiaxle-proxy-event-subscriber.js"
   },
   "dependencies": {
-    "apiaxle-base": "1.10.3",
-    "async": "0.1.9",
+    "apiaxle-base": "1.12.32",
     "libxmljs": "0.7.1",
-    "lodash": "~1.2.0",
-    "request": "~2.16.6",
-    "scarf": "0.0.8",
-    "debug": "~0.7.2",
+    "lodash": "~2.2.1",
     "sinon": "~1.6.0",
     "twerp": "~1.0.7",
-    "hiredis": "~0.1.15",
-    "redis": "git+https://github.com/DocuSignDev/node_redis.git",
-    "optimist": "~0.5.2"
+    "optimist": "~0.5.2",
+    "async": "~0.2.9",
+    "redis": "^0.10.3",
+    "hiredis": "^0.1.17"
   },
   "devDependencies": {
-    "muffin": "~0",
-    "coffeelint": "0.5",
-    "istanbul": "~0",
-    "coffee-script": "~1.6.2"
+    "coffee-script": "~1.6.2",
+    "nock": "~0.22.1"
   }
 }

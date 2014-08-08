@@ -34,7 +34,7 @@ class exports.CountersTest extends FakeAppTest
     all = []
 
     # hit for facebook
-    all.push ( cb ) => @model.log "facebook", "phil", [], matches, 100, cb
+    all.push ( cb ) => @model.log "facebook", "phil", [], matches, 100, Date.now(), cb
 
     # see if we can fetch the timing results
     all.push ( cb ) =>
@@ -67,4 +67,4 @@ class exports.CountersTest extends FakeAppTest
     async.series all, ( err ) =>
       @ok not err
 
-      done 3
+      done 5

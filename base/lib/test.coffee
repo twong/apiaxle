@@ -9,8 +9,6 @@ async  = require "async"
 libxml = require "libxmljs"
 _      = require "lodash"
 
-debug = require( "debug" )( "tests:base" )
-
 { Application } = require "./application"
 { TwerpTest }   = require "twerp"
 { Redis }       = require "../app/model/redis"
@@ -80,7 +78,6 @@ class exports.AppTest extends TwerpTest
     all = []
 
     if not @app = app_mem
-      debug "Constructing application"
       @app = app_mem = new @constructor.appClass
         env: "test"
         port: @constructor.port
@@ -130,8 +127,8 @@ class exports.AppTest extends TwerpTest
     all = []
 
     all.push ( cb ) => @app.configure cb
+    all.push ( cb ) => @app.redisConnect "redisClient", cb
     all.push ( cb ) => @app.loadAndInstansiatePlugins cb
-    all.push ( cb ) => @app.redisConnect cb
     all.push ( cb ) => @app.initErrorHandler cb
 
     async.series all, ( err ) ->
@@ -157,7 +154,7 @@ class exports.AppTest extends TwerpTest
     if @constructor.start_webserver
       @app.close()
 
-    @app.redisClient.quit( )
+    @app.redisClient.quit()
 
     super done
 

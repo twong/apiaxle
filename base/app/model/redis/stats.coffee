@@ -3,7 +3,6 @@
 # Store and access real time hits per second
 async   = require "async"
 _       = require "lodash"
-debug = require( "debug" )( "aa:stats" )
 
 {Redis} = require "../redis"
 
@@ -57,9 +56,9 @@ class exports.Stats extends Redis
     return @smembers db_key.concat([ "response-types" ]), cb
 
   # record the score for thing at various granularities
-  recordScore: ( multi, db_key, thing ) ->
+  recordScore: ( multi, time, db_key, thing ) ->
     for gran, properties of Stats.granularities
-      tsround = @getRoundedTimestamp null, properties.factor
+      tsround = @getRoundedTimestamp time, properties.factor
       temp_key = db_key.concat [ gran, "score" ]
 
       # hash keys are stored at second
@@ -69,11 +68,11 @@ class exports.Stats extends Redis
 
     return multi
 
-  recordHit: ( multi, [ db_key..., axle_type ] ) ->
+  recordHit: ( multi, time, [ db_key..., axle_type ] ) ->
     multi.sadd db_key.concat([ "response-types" ]), axle_type
 
     for gran, properties of Stats.granularities
-      tsround = @getRoundedTimestamp null, ( properties.size * properties.factor )
+      tsround = @getRoundedTimestamp time, ( properties.size * properties.factor )
 
       temp_key = db_key.concat [ axle_type, gran, tsround ]
 
@@ -88,7 +87,7 @@ class exports.Stats extends Redis
   getScores: ( db_key, gran, cb ) ->
     temp_key = db_key.concat [ gran, "score" ]
 
-    return @zrevrangeOpt temp_key, [ 0, 100, "WITHSCORES" ], ( err, scores ) ->
+    return @zrevrangeOpt temp_key, [ 0, 1000, "WITHSCORES" ], ( err, scores ) ->
       all = {}
 
       # zip up the array into an object
@@ -177,27 +176,31 @@ class exports.Stats extends Redis
     # overlap
     return ( min - properties.ttl )
 
-  hit: ( api, key, keyrings, cached, code, cb ) ->
+  hit: ( api, key, keyrings, cached, code, time, cb ) ->
     multi = @multi()
 
-    @recordHit multi, [ "api", api, cached, code ]
-    @recordHit multi, [ "key", key, cached, code ]
-    @recordHit multi, [ "key-api", key, api, cached, code ]
-    @recordHit multi, [ "api-key", api, key, cached, code ]
+    @recordHit multi, time, [ "api", api, cached, code ]
+    @recordHit multi, time, [ "key", key, cached, code ]
+    @recordHit multi, time, [ "key-api", key, api, cached, code ]
 
-    @recordScore multi, [ "api" ], api
-    @recordScore multi, [ "key" ], key
-    @recordScore multi, [ "key-api", key ], api
-    @recordScore multi, [ "api-key", api ], key
+    # we don't capture key errors because one of the issues might be
+    # that they used the key to call the wrong API. In that case,
+    # their score will appear against that API.
+    if code not in [ "KeyError", "KeyDisabled" ]
+      @recordScore multi, time, [ "api" ], api
+      @recordScore multi, time, [ "key" ], key
+      @recordScore multi, time, [ "key-api", key ], api
+      @recordScore multi, time, [ "api-key", api ], key
 
     # record the keyring stats too
     for keyring in keyrings
-      @recordHit multi, [ "keyring", keyring, cached, code ]
-      @recordHit multi, [ "keyring-api", keyring, api, cached, code ]
-      @recordHit multi, [ "keyring-key", keyring, key, cached, code ]
+      @recordHit multi, time, [ "keyring", keyring, cached, code ]
+      @recordHit multi, time, [ "keyring-api", keyring, api, cached, code ]
+      @recordHit multi, time, [ "keyring-key", keyring, key, cached, code ]
 
-      @recordScore multi, [ "keyring" ], keyring
-      @recordScore multi, [ "keyring-api", keyring ], api
-      @recordScore multi, [ "keyring-key", keyring ], key
+      if not code not in [ "KeyError", "KeyDisabled" ]
+        @recordScore multi, time, [ "keyring" ], keyring
+        @recordScore multi, time, [ "keyring-api", keyring ], api
+        @recordScore multi, time, [ "keyring-key", keyring ], key
 
     return multi.exec cb

@@ -258,8 +258,8 @@ class exports.ViewAllStatsForApi extends StatsController
 
     # narrow down to a particular api
     if for_key = req.query.forkey
-      axle_type      = "api-key"
-      redis_key_part = [ req.api.id, for_key ]
+      axle_type      = "key-api"
+      redis_key_part = [ for_key, req.api.id ]
 
     @getStatsRange req, axle_type, redis_key_part, ( err, results ) =>
       return next err if err
@@ -276,7 +276,7 @@ class exports.ApiKeyCharts extends StatsController
   docs: ->
     {}=
       title: "Get the most used keys for this api."
-      response: """List of the top 100 keys and their hit rate for time
+      response: """List of the top 1000 keys and their hit rate for time
                    period GRANULARITY"""
 
   execute: ( req, res, next ) ->

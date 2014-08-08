@@ -63,10 +63,6 @@ class exports.ApiFactory extends Redis
       updatedAt:
         type: "integer"
         optional: true
-      globalCache:
-        type: "integer"
-        docs: "The time in seconds that every call under this API should be cached."
-        default: 0
       endPoint:
         type: "string"
         required: true
@@ -76,6 +72,10 @@ class exports.ApiFactory extends Redis
         enum: [ "https", "http" ]
         default: "http"
         docs: "The protocol for the API, whether or not to use SSL"
+      tokenSkewProtectionCount:
+        type: "integer"
+        default: 3
+        docs: "The amount of seconds you allow a valid token to be calculated against, either side of the current second. The higher the number the greater the computational cost."
       apiFormat:
         type: "string"
         enum: [ "json", "xml" ]
@@ -85,10 +85,6 @@ class exports.ApiFactory extends Redis
         type: "integer"
         default: 2
         docs: "Seconds to wait before timing out the connection"
-      endPointMaxRedirects:
-        type: "integer"
-        default: 2
-        docs: "Max redirects that are allowed when endpoint called."
       extractKeyRegex:
         type: "string"
         docs: "Regular expression used to extract API key from url. Axle will use the **first** matched grouping and then apply that as the key. Using the `api_key` or `apiaxle_key` will take precedence."
@@ -118,3 +114,44 @@ class exports.ApiFactory extends Redis
         type: "boolean"
         default: false
         docs: "When true ApiAxle will parse and capture bits of information about the API being called."
+      allowKeylessUse:
+        type: "boolean"
+        optional: true
+        default: false
+        docs: "If true then allow for keyless access to this API. Also see keylessQps and keylessQpd."
+      keylessQps:
+        type: "integer"
+        optional: false
+        default: 2
+        docs: "How many queries per second an anonymous key should have " +
+              "when it's created. Note that changing this will not affect " +
+              "on temporary keys that have already been created. However, as " +
+              "temprary keys only live for 24 hours, this limit will be " +
+              "applied when that period expires."
+      keylessQpd:
+        type: "integer"
+        optional: false
+        default: 172800
+        docs: "How many queries per day an anonymous key should have " +
+              "when it's created. Note that changing this will not affect " +
+              "on temporary keys that have already been created. However, as " +
+              "temprary keys only live for 24 hours, this limit will be " +
+              "applied when that period expires."
+      corsEnabled:
+        type: "boolean"
+        optional: true
+        default: false
+        docs: "Whether or not you want to enable CORS (http://www.w3.org/TR/cors/) " +
+              "support. This enables CORS for all origins and is intended to be simple " +
+              "and cover the majority of users. If you need more refined configuration we " +
+              "suggest you use something like varnish or nginx to do this. Note that your " +
+              "API endpoint should support the OPTIONS method which is often used in 'preflight' " +
+              "requests for the XHR object to verify CORS headers. " +
+              "When enabled, the following headers will be returned:
+
+              Access-Control-Allow-Origin: *
+              Access-Control-Allow-Credentials: true
+              Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD
+              Access-Control-Allow-Headers: Origin, Accept, Content-Type, X-Requested-With, X-CSRF-Token
+              Access-Control-Expose-Headers: content-type, content-length, X-ApiaxleProxy-Qps-Left, X-ApiaxleProxy-Qpd-Left
+              "

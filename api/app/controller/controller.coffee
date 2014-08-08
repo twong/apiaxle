@@ -64,7 +64,7 @@ class exports.ApiaxleController extends Controller
 
       all = {}
       for id, data of results
-        all[id] = if data.data? then data.data else data
+        all[id] = if data?.data? then data.data else data
 
       return cb null, all
 
@@ -189,7 +189,6 @@ class exports.ListController extends exports.ApiaxleController
       pagination.next.href = "#{ url}?#{ qs.stringify next_params }"
       pagination.next.from = next_params.from
       pagination.next.to = next_params.to
-
 
     if from > 0
       prev_params = _.clone req.query

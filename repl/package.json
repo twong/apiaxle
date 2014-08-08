@@ -12,7 +12,7 @@
   ],
   "description": "ApiAxle's commandline interface.",
   "bugs": "https://github.com/apiaxle/apiaxle/issues",
-  "version": "1.10.3",
+  "version": "1.12.32",
   "scripts": {
     "test": "cake test"
   },
@@ -20,15 +20,15 @@
     "apiaxle": "./apiaxle.js"
   },
   "dependencies": {
-    "async": "~0.2.7",
     "lodash": "~1.2.0",
     "tokenizer": "~0.1.2",
-    "apiaxle-base": "1.10.3",
+    "apiaxle-base": "1.12.32",
     "libxmljs": "~0.7.1",
-    "apiaxle-api": "1.10.3",
+    "apiaxle-api": "1.12.32",
     "sinon": "~1.6.0",
     "twerp": "~1.0.7",
-    "stdin": "0.0.1"
+    "stdin": "0.0.1",
+    "async": "~0.2.9"
   },
   "devDependencies": {
     "coffee-script": "~1.6.2"

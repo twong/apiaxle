@@ -13,7 +13,7 @@ class exports.ApiLimits extends Redis
   @qpsExpires = 1
 
   qpsKey: ( key ) ->
-    seconds = Math.round( Date.now() / 1000 )
+    seconds = Math.floor( Date.now() / 1000 )
 
     return [ "qps", seconds, key ]
 
@@ -21,54 +21,48 @@ class exports.ApiLimits extends Redis
     return [ "qpd", @dayString(), key ]
 
   setInitialQp: ( key, expires, qp, cb ) ->
-    @setex key, expires, qp, ( err ) ->
+    @setex key, expires, qp, ( err ) =>
       return cb err if err
       return cb null, qp
 
   apiHit: ( key, qpsLimit, qpdLimit, cb ) ->
     both = []
 
-    if qpsLimit? and qpsLimit > 0
-      both.push ( innerCb ) =>
-        @qpsHit key, qpsLimit, innerCb
-
     if qpdLimit? and qpdLimit > 0
       both.push ( innerCb ) =>
         @qpdHit key, qpdLimit, innerCb
+
+    if qpsLimit? and qpsLimit > 0
+      both.push ( innerCb ) =>
+        @qpsHit key, qpsLimit, innerCb
 
     async.series both, cb
 
   qpdHit: ( key, qpdLimit, cb ) ->
     qpdKey = @qpdKey( key )
-
     @qpHit qpdKey, @constructor.qpdExpires, qpdLimit, QpdExceededError, cb
 
   qpsHit: ( key, qpsLimit, cb ) ->
     qpsKey = @qpsKey( key )
-
     @qpHit qpsKey, @constructor.qpsExpires, qpsLimit, QpsExceededError, cb
 
   updateQpValue: ( qpKey, value, cb ) ->
     @set qpKey, value, cb
 
   qpHit: ( qpKey, qpExpires, qpLimit, QpErrorClass, cb ) ->
-    # first, we need to do the initial get because it's possible the
-    # qpKey doesn't exist already and we can't determine that from a
-    # decr
-    multi = @multi()
-    multi.get qpKey
-    multi.decr qpKey
-
-    multi.exec ( err, [ currentQp, newQp ] ) =>
+    # we're allowed the call
+    @incr qpKey, ( err, newQp ) =>
       return cb err if err
 
-      # if currentQp is null then this is the first time we've used
-      # it. Decrement the limit because this counts as a hit.
-      return @setInitialQp qpKey, qpExpires, ( qpLimit - 1 ), cb if not currentQp?
+      extra = []
 
-      # we're allowed the call
-      if currentQp > "0"
-        return cb null, newQp
+      # make sure it doesn't hang around
+      if newQp is 1
+        extra.push ( cb ) => @expire qpKey, qpExpires, cb
 
-      # if we get here we've made too many calls
-      return cb new QpErrorClass "Queries exceeded (#{ qpLimit } allowed).", null
+      if newQp > qpLimit or qpLimit is 0
+        return cb new QpErrorClass "Queries exceeded (#{ qpLimit } allowed)."
+
+      async.series extra, ( err ) ->
+        return cb err if err
+        return cb null, ( qpLimit - newQp )
